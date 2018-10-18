@@ -8,9 +8,9 @@ RUN yum -y install git \
  libxml2-devel.x86_64 libxslt-devel.x86_64  libcurl-devel.x86_64
 
 RUN pip install \
-  git+https://github.com/CanDIG/ga4gh-schemas.git@authz#egg=ga4gh_schemas  \
+  git+https://github.com/CanDIG/ga4gh-schemas.git@search#egg=ga4gh_schemas  \
   git+https://github.com/CanDIG/ga4gh-client.git@authz#egg=ga4gh_client \
-  git+https://github.com/CanDIG/ga4gh-server.git@authz#egg=ga4gh_server  \
+  git+https://github.com/CanDIG/ga4gh-server.git@master#egg=ga4gh_server  \
   git+https://github.com/CanDIG/PROFYLE_ingest.git@authz#egg=PROFYLE_ingest \
   requests==2.7.0 gunicorn
 WORKDIR /usr/lib/python2.7/site-packages/ga4gh
@@ -26,5 +26,6 @@ RUN PROFYLE_ingest ga4gh-example-data/registry.db clinical_metadata_tier /tmp/cl
 RUN pip install gevent
 COPY ga4gh_server_gunicorn.py /usr/lib/python2.7/site-packages/ga4gh/server/cli/server.py
 EXPOSE 80
-ENTRYPOINT ["ga4gh_server"]
-CMD ["--host", "0.0.0.0", "--port", "80", "--workers", "2", "-f",  "/opt/ga4gh/config.py "]
+# The ls forces a cash flush
+ENTRYPOINT ls /opt/ga4gh_server/ && ga4gh_server
+CMD ["--host", "0.0.0.0", "--port", "80", "--workers", "2", "-f",  "/opt/ga4gh_server/config.py "]
