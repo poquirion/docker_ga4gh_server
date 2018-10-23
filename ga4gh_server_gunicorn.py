@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Server cli
 """
@@ -7,6 +6,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import requests
+
 import gunicorn.app.base
 
 import ga4gh.server.cli as cli
@@ -32,6 +32,7 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
         return self.application
 
 
+
 def addServerOptions(parser):
     parser.add_argument(
         "--port", "-P", default=8000, type=int,
@@ -47,50 +48,30 @@ def addServerOptions(parser):
         help="The configuration file to use")
     parser.add_argument(
         "--tls", "-t", action="store_true", default=False,
-        help="Start in TLS (https) mode (for Flask debug)")
+        help="Start in TLS (https) mode.")
+    parser.add_argument(
+        "--gunicorn", action="store_true", default=False,
+        help="start server with gunicorn")
     parser.add_argument(
         "--dont-use-reloader", default=False, action="store_true",
-        help="Don't use the Flask reloader (for Flask debug)")
+        help="Don't use the flask or gunicorn reloader")
     parser.add_argument(
         "--workers", "-w", default=1,
         help="number of gunicorn  worker.")
     parser.add_argument(
         "--worker_class", "-k", default='sync',
         help="The type of worker process to run. "
-             "You’ll definitely want to read the "
-             "production page for the implications "
-             "of this parameter to gevent or sync (default)")
+             "gevent or sync (default)")
+
 
     cli.addVersionArgument(parser)
     cli.addDisableUrllibWarningsArgument(parser)
 
 
-def runGunicornServer(parsedArgs):
-
-    print(parsedArgs)
-    options = {
-        'bind': '%s:%s' % (parsedArgs.host, parsedArgs.port),
-        'workers': int(parsedArgs.workers) ,
-        'worker_class': parsedArgs.worker_class ,
-        'accesslog': '-',  # Puts the access log on stdout
-        'errorlog': '-' ,
-
-        # Puts the error log on stdout
-    }
-    app = StandaloneApplication(frontend.app, options)
-    app.run()
-    return app
-
-
 def getServerParser():
-    """
-    Used by sphinx.argparse.
-    """
     parser = common_cli.createArgumentParser("GA4GH reference server")
     addServerOptions(parser)
     return parser
-
-
 
 
 def server_main(args=None):
@@ -98,11 +79,31 @@ def server_main(args=None):
     parsedArgs = parser.parse_args(args)
     if parsedArgs.disable_urllib_warnings:
         requests.packages.urllib3.disable_warnings()
+
     frontend.configure(
         parsedArgs.config_file, parsedArgs.config, parsedArgs.port)
+
     sslContext = None
+
     if parsedArgs.tls or ("OIDC_PROVIDER" in frontend.app.config):
         sslContext = "adhoc"
 
+    if parsedArgs.gunicorn:
+        options = {
+            'bind': '%s:%s' % (parsedArgs.host, parsedArgs.port),
+            'workers': int(parsedArgs.workers),
+            'worker_class': parsedArgs.worker_class,
+            'accesslog': '-',  # Puts the access log on stdout
+            'errorlog': '-',  # Puts the error log on stdout
+            'reload': not parsedArgs.dont_use_reloader,
+        }
 
-    runGunicornServer(parsedArgs)
+        frontend.configure(configFile = parsedArgs.config_file, baseConfig="BaseConfig")
+        app = StandaloneApplication(frontend.app, options)
+        app.run()
+    else:
+
+        frontend.app.run(
+            host=parsedArgs.host, port=parsedArgs.port,
+            use_reloader=not parsedArgs.dont_use_reloader,
+            ssl_context=sslContext, threaded=True)

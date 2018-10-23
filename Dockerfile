@@ -26,6 +26,6 @@ RUN PROFYLE_ingest ga4gh-example-data/registry.db clinical_metadata_tier /tmp/cl
 RUN pip install gevent
 COPY ga4gh_server_gunicorn.py /usr/lib/python2.7/site-packages/ga4gh/server/cli/server.py
 EXPOSE 80
+RUN mkdir -p /opt/ga4gh_server/
 # The ls forces a cash flush
-ENTRYPOINT ls /opt/ga4gh_server/ && ga4gh_server
-CMD ["--host", "0.0.0.0", "--port", "80", "--workers", "2", "-f",  "/opt/ga4gh_server/config.py "]
+ENTRYPOINT ga4gh_server --host 0.0.0.0 --port 80 --workers 1 -f /opt/ga4gh_server/config.py --gunicorn
